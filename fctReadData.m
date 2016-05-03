@@ -16,18 +16,19 @@ function [real_peaks, ECG_FIR] = fctReadData(ECG, t1, t2, fs, my_gain, delta_n)
     % FIR filter
     %order = 40;
     % Normalized frequency : https://www.mathworks.com/matlabcentral/newsreader/view_thread/286192
-    %w_inf = (2*8)/fs; % 8Hz in normalized frequency
-    %w_sup = (2*20)/fs; % 20Hz in normalized frequency
+    %w_inf = (2*6)/fs; % 8Hz in normalized frequency
+    %w_sup = (2*18)/fs; % 20Hz in normalized frequency
     %b = fir1(order,[w_inf w_sup], kaiser(order+1,0.5)); % FIR filter between 8 and 20Hz, fs = 512 Hz, w = 2*pi*f/fs
     %b = fir1(order,[w_inf w_sup],'bandpass');
     %b = fir1(order,[w_inf w_sup],'bandpass');
     %[b,a] = cheby1(4,5,[w_inf w_sup],'bandpass');
     %ECG_FIR = filter(b,1,ECG);
    
-    fcuts = [5 6 18 19];
+    %fcuts = [5 6 18 19];
+    fcuts = [7 8 20 21]; % seems to be ok too
     mags = [0 1 0];
     %devs = [0.01 0.05 0.01];
-    devs = [0.0315 0.1 0.0315]; % 0.0315 => 30dB of attenuation between stopband and passband 
+    devs = [0.0315 0.1 0.0315]; % 0.0315 => 30dB of attenuation between stopband and passband and riple of 10% in pass band
 
     [n,Wn,beta,ftype] = kaiserord(fcuts,mags,devs,fs);
     fprintf('The order of the filter is equal to %d \n', n);
@@ -46,17 +47,40 @@ function [real_peaks, ECG_FIR] = fctReadData(ECG, t1, t2, fs, my_gain, delta_n)
     %ECG_FIR = filtfilt(b,1,ECG); % filtfilt => |H|^2 => 2*attenuation of fir1 and no phase lag
     ECG_FIR = filter(b,1,ECG);
     grpdelay(b,N,fs)
-    delay = mean(grpdelay(b));
+    delay = mean(grpdelay(b)); % The delay is in samples 
     fprintf('Loss of %d s of the signal due to the filter \n', delay/fs);
     
+    % To compensate the delay
+    ECG = ECG(1:end-(delay));
+    time = time(1:end-(delay));
+    ECG_FIR(1:delay) = [];
+    N = length(time);
+    t2 = t2-(delay/fs);
+    
+%     figure;
+%     plot(time, ECG,'b', time, ECG_FIR,'g');
+%     xlabel('time [s]');
+%     ylabel('ECG [mv]');
+%     %title('Impact of the FIR filter');
+%     legend('Raw ECG', 'Filtered ECG');
+%     grid;
+%     set(gca,'FontSize', 22);
+    
     figure;
-    plot(time, ECG,'b', time, ECG_FIR,'g');
-    xlabel('time (s)');
-    ylabel('ECG');
-    title('Impact of the FIR filter');
+    plot(time, ECG,'b', time, ECG_FIR,'g','linewidth',2.0);
+    xlabel('Time [s]');
+    ylabel('ECG [mV]');
+    %title('Impact of the FIR filter');
     legend('Raw ECG', 'Filtered ECG');
     grid;
-    set(gca,'FontSize', 22);
+    set(gca,'fontsize',22,'fontname','Times', 'LineWidth',0.5);
+    set(gca,'XLim',[235 255]);
+    set(gcf, 'paperunits', 'inches');
+    Lx=8; Ly=6;
+    set(gcf, 'papersize', [Lx Ly]);
+    set(gcf, 'PaperPosition', [0.01*Lx 0.01*Ly 1.05*Lx 1.02*Ly]);
+    name = strcat('C:\Users\Florent\Documents\ULG\2ème Master\Master thesis\Rapport\Images\MotionArtifactsFiltered');
+    %print(name,'-dpdf')
     
     figure;
     subplot(2,2,1);
